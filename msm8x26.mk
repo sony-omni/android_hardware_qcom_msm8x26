@@ -14,7 +14,7 @@
 
 # B-family devices should have the same kernel interfaces, so
 # include the msm8x74 headers for now
-PRODUCT_VENDOR_KERNEL_HEADERS := hardware/qcom/msm8x74/kernel-headers
+PRODUCT_VENDOR_KERNEL_HEADERS := hardware/qcom/msm8x26/kernel-headers
 
 PRODUCT_PACKAGES += \
 	hwcomposer.msm8x26 \
