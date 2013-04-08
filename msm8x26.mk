@@ -13,9 +13,9 @@
 # limitations under the License.
 
 # B-family devices should have the same kernel interfaces, so
-# include the msm8x74 headers for now
+# include the msm8974 headers for now
 PRODUCT_VENDOR_KERNEL_HEADERS := hardware/qcom/msm8x26/kernel-headers
 
 PRODUCT_PACKAGES += \
-	hwcomposer.msm8x26 \
-	gralloc.msm8x26
+	hwcomposer.msm8226 \
+	gralloc.msm8226
