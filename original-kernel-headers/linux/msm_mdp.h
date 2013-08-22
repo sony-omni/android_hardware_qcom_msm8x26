@@ -50,7 +50,7 @@
 #define MSMFB_HISTOGRAM_START	_IOR(MSMFB_IOCTL_MAGIC, 144, \
 						struct mdp_histogram_start_req)
 #define MSMFB_HISTOGRAM_STOP	_IOR(MSMFB_IOCTL_MAGIC, 145, unsigned int)
-#define MSMFB_NOTIFY_UPDATE	_IOW(MSMFB_IOCTL_MAGIC, 146, unsigned int)
+#define MSMFB_NOTIFY_UPDATE	_IOWR(MSMFB_IOCTL_MAGIC, 146, unsigned int)
 
 #define MSMFB_OVERLAY_3D       _IOWR(MSMFB_IOCTL_MAGIC, 147, \
 						struct msmfb_overlay_3d)
@@ -78,6 +78,7 @@
 #define MSMFB_METADATA_GET  _IOW(MSMFB_IOCTL_MAGIC, 166, struct msmfb_metadata)
 #define MSMFB_WRITEBACK_SET_MIRRORING_HINT _IOW(MSMFB_IOCTL_MAGIC, 167, \
 						unsigned int)
+#define MSMFB_ASYNC_BLIT              _IOW(MSMFB_IOCTL_MAGIC, 168, unsigned int)
 
 #define FB_TYPE_3D_PANEL 0x10101010
 #define MDP_IMGTYPE2_START 0x10000
@@ -86,6 +87,13 @@
 enum {
 	NOTIFY_UPDATE_START,
 	NOTIFY_UPDATE_STOP,
+	NOTIFY_UPDATE_POWER_OFF,
+};
+
+enum {
+	NOTIFY_TYPE_NO_UPDATE,
+	NOTIFY_TYPE_SUSPEND,
+	NOTIFY_TYPE_UPDATE,
 };
 
 enum {
@@ -436,6 +444,31 @@ struct mdp_histogram {
 	uint32_t *b;
 };
 
+enum {
+	DISPLAY_MISR_EDP,
+	DISPLAY_MISR_DSI0,
+	DISPLAY_MISR_DSI1,
+	DISPLAY_MISR_HDMI,
+	DISPLAY_MISR_LCDC,
+	DISPLAY_MISR_ATV,
+	DISPLAY_MISR_DSI_CMD,
+	DISPLAY_MISR_MAX
+};
+
+enum {
+	MISR_OP_NONE,
+	MISR_OP_SFM,
+	MISR_OP_MFM,
+	MISR_OP_BM,
+	MISR_OP_MAX
+};
+
+struct mdp_misr {
+	uint32_t block_id;
+	uint32_t frame_count;
+	uint32_t crc_op_mode;
+	uint32_t crc_value[32];
+};
 
 /*
 
@@ -574,10 +607,33 @@ struct mdp_calib_config_data {
 	uint32_t data;
 };
 
+struct mdp_calib_config_buffer {
+	uint32_t ops;
+	uint32_t size;
+	uint32_t *buffer;
+};
+
+struct mdp_calib_dcm_state {
+	uint32_t ops;
+	uint32_t dcm_state;
+};
+
+enum {
+	DCM_UNINIT,
+	DCM_UNBLANK,
+	DCM_ENTER,
+	DCM_EXIT,
+	DCM_BLANK,
+};
+
+#define MDSS_MAX_BL_BRIGHTNESS 255
+#define AD_BL_LIN_LEN (MDSS_MAX_BL_BRIGHTNESS + 1)
+
 #define MDSS_AD_MODE_AUTO_BL	0x0
 #define MDSS_AD_MODE_AUTO_STR	0x1
 #define MDSS_AD_MODE_TARG_STR	0x3
 #define MDSS_AD_MODE_MAN_STR	0x7
+#define MDSS_AD_MODE_CALIB	0xF
 
 #define MDP_PP_AD_INIT	0x10
 #define MDP_PP_AD_CFG	0x20
@@ -600,8 +656,13 @@ struct mdss_ad_init {
 	uint16_t frame_h;
 	uint8_t logo_v;
 	uint8_t logo_h;
+	uint32_t bl_lin_len;
+	uint32_t *bl_lin;
+	uint32_t *bl_lin_inv;
 };
 
+#define MDSS_AD_BL_CTRL_MODE_EN 1
+#define MDSS_AD_BL_CTRL_MODE_DIS 0
 struct mdss_ad_cfg {
 	uint32_t mode;
 	uint32_t al_calib_lut[33];
@@ -614,6 +675,7 @@ struct mdss_ad_cfg {
 	uint8_t strength_limit;
 	uint8_t t_filter_recursion;
 	uint16_t stab_itr;
+	uint32_t bl_ctrl_mode;
 };
 
 /* ops uses standard MDP_PP_* flags */
@@ -631,8 +693,15 @@ struct mdss_ad_input {
 	union {
 		uint32_t amb_light;
 		uint32_t strength;
+		uint32_t calib_bl;
 	} in;
 	uint32_t output;
+};
+
+#define MDSS_CALIB_MODE_BL	0x1
+struct mdss_calib_cfg {
+	uint32_t ops;
+	uint32_t calib_mask;
 };
 
 enum {
@@ -647,6 +716,9 @@ enum {
 	mdp_op_calib_cfg,
 	mdp_op_ad_cfg,
 	mdp_op_ad_input,
+	mdp_op_calib_mode,
+	mdp_op_calib_buffer,
+	mdp_op_calib_dcm_state,
 	mdp_op_max,
 };
 
@@ -656,6 +728,8 @@ enum {
 	WB_FORMAT_RGB_888,
 	WB_FORMAT_xRGB_8888,
 	WB_FORMAT_ARGB_8888,
+	WB_FORMAT_BGRA_8888,
+	WB_FORMAT_BGRX_8888,
 	WB_FORMAT_ARGB_8888_INPUT_ALPHA /* Need to support */
 };
 
@@ -672,7 +746,10 @@ struct msmfb_mdp_pp {
 		struct mdp_gamut_cfg_data gamut_cfg_data;
 		struct mdp_calib_config_data calib_cfg;
 		struct mdss_ad_init_cfg ad_init_cfg;
+		struct mdss_calib_cfg mdss_calib_cfg;
 		struct mdss_ad_input ad_input;
+		struct mdp_calib_config_buffer calib_buffer;
+		struct mdp_calib_dcm_state calib_dcm;
 	} data;
 };
 
@@ -684,6 +761,7 @@ enum {
 	metadata_op_vic,
 	metadata_op_wb_format,
 	metadata_op_get_caps,
+	metadata_op_crc,
 	metadata_op_max
 };
 
@@ -708,6 +786,7 @@ struct msmfb_metadata {
 	uint32_t op;
 	uint32_t flags;
 	union {
+		struct mdp_misr misr_request;
 		struct mdp_blend_cfg blend_cfg;
 		struct mdp_mixer_cfg mixer_cfg;
 		uint32_t panel_frame_rate;
@@ -716,7 +795,7 @@ struct msmfb_metadata {
 	} data;
 };
 
-#define MDP_MAX_FENCE_FD	10
+#define MDP_MAX_FENCE_FD	32
 #define MDP_BUF_SYNC_FLAG_WAIT	1
 
 struct mdp_buf_sync {
@@ -724,6 +803,12 @@ struct mdp_buf_sync {
 	uint32_t acq_fen_fd_cnt;
 	int *acq_fen_fd;
 	int *rel_fen_fd;
+};
+
+struct mdp_async_blit_req_list {
+	struct mdp_buf_sync sync;
+	uint32_t count;
+	struct mdp_blit_req req[];
 };
 
 #define MDP_DISPLAY_COMMIT_OVERLAY	1
