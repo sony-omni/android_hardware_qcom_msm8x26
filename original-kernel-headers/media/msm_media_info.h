@@ -7,6 +7,7 @@
 
 enum color_fmts {
 	COLOR_FMT_NV12,
+	COLOR_FMT_NV21,
 };
 
 #define VENUS_Y_STRIDE(_color_fmt, _width)	MSM_MEDIA_ALIGN(_width, 128)
