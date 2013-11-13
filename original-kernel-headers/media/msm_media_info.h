@@ -6,20 +6,183 @@
 #endif
 
 enum color_fmts {
+	/* Venus NV12:
+	 * YUV 4:2:0 image with a plane of 8 bit Y samples followed
+	 * by an interleaved U/V plane containing 8 bit 2x2 subsampled
+	 * colour difference samples.
+	 *
+	 * <-------- Y/UV_Stride -------->
+	 * <------- Width ------->
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  ^           ^
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  Height      |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |          Y_Scanlines
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  V           |
+	 * X X X X X X X X X X X X X X X X              |
+	 * X X X X X X X X X X X X X X X X              |
+	 * X X X X X X X X X X X X X X X X              |
+	 * X X X X X X X X X X X X X X X X              V
+	 * U V U V U V U V U V U V X X X X  ^
+	 * U V U V U V U V U V U V X X X X  |
+	 * U V U V U V U V U V U V X X X X  |
+	 * U V U V U V U V U V U V X X X X  UV_Scanlines
+	 * X X X X X X X X X X X X X X X X  |
+	 * X X X X X X X X X X X X X X X X  V
+	 * X X X X X X X X X X X X X X X X  --> Buffer size alignment
+	 *
+	 * Y_Stride : Width aligned to 128
+	 * UV_Stride : Width aligned to 128
+	 * Y_Scanlines: Height aligned to 32
+	 * UV_Scanlines: Height/2 aligned to 16
+	 * Total size = align((Y_Stride * Y_Scanlines
+	 *          + UV_Stride * UV_Scanlines + 4096), 4096)
+	 */
 	COLOR_FMT_NV12,
+
+	/* Venus NV21:
+	 * YUV 4:2:0 image with a plane of 8 bit Y samples followed
+	 * by an interleaved V/U plane containing 8 bit 2x2 subsampled
+	 * colour difference samples.
+	 *
+	 * <-------- Y/UV_Stride -------->
+	 * <------- Width ------->
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  ^           ^
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  Height      |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |          Y_Scanlines
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  |           |
+	 * Y Y Y Y Y Y Y Y Y Y Y Y X X X X  V           |
+	 * X X X X X X X X X X X X X X X X              |
+	 * X X X X X X X X X X X X X X X X              |
+	 * X X X X X X X X X X X X X X X X              |
+	 * X X X X X X X X X X X X X X X X              V
+	 * V U V U V U V U V U V U X X X X  ^
+	 * V U V U V U V U V U V U X X X X  |
+	 * V U V U V U V U V U V U X X X X  |
+	 * V U V U V U V U V U V U X X X X  UV_Scanlines
+	 * X X X X X X X X X X X X X X X X  |
+	 * X X X X X X X X X X X X X X X X  V
+	 * X X X X X X X X X X X X X X X X  --> Padding & Buffer size alignment
+	 *
+	 * Y_Stride : Width aligned to 128
+	 * UV_Stride : Width aligned to 128
+	 * Y_Scanlines: Height aligned to 32
+	 * UV_Scanlines: Height/2 aligned to 16
+	 * Total size = align((Y_Stride * Y_Scanlines
+	 *          + UV_Stride * UV_Scanlines + 4096), 4096)
+	 */
 	COLOR_FMT_NV21,
 };
 
-#define VENUS_Y_STRIDE(_color_fmt, _width)	MSM_MEDIA_ALIGN(_width, 128)
-#define VENUS_UV_STRIDE(_color_fmt, _width) MSM_MEDIA_ALIGN(_width, 128)
-#define VENUS_Y_SCANLINES(_color_fmt, _width) MSM_MEDIA_ALIGN(_width, 32)
-#define VENUS_UV_SCANLINES(_color_fmt, _width) MSM_MEDIA_ALIGN(_width, 16)
+static inline unsigned int VENUS_Y_STRIDE(int color_fmt, int width)
+{
+	unsigned int alignment, stride = 0;
+	if (!width)
+		goto invalid_input;
 
-#define VENUS_BUFFER_SIZE_UNALIGNED(_color_fmt, _width, _height) \
-	((VENUS_Y_STRIDE(_color_fmt, _width) * VENUS_Y_SCANLINES(_color_fmt, _height)) + \
-	(VENUS_UV_STRIDE(_color_fmt, _width) * VENUS_UV_SCANLINES(_color_fmt, _height) + 4096))
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+		alignment = 128;
+		stride = MSM_MEDIA_ALIGN(width, alignment);
+		break;
+	default:
+		break;
+	}
+invalid_input:
+	return stride;
+}
 
-#define VENUS_BUFFER_SIZE(_color_fmt, _width, _height) \
-	MSM_MEDIA_ALIGN(VENUS_BUFFER_SIZE_UNALIGNED(_color_fmt, _width, _height),4096)
+static inline unsigned int VENUS_UV_STRIDE(int color_fmt, int width)
+{
+	unsigned int alignment, stride = 0;
+	if (!width)
+		goto invalid_input;
+
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+		alignment = 128;
+		stride = MSM_MEDIA_ALIGN(width, alignment);
+		break;
+	default:
+		break;
+	}
+invalid_input:
+	return stride;
+}
+
+static inline unsigned int VENUS_Y_SCANLINES(int color_fmt, int height)
+{
+	unsigned int alignment, sclines = 0;
+	if (!height)
+		goto invalid_input;
+
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+		alignment = 32;
+		sclines = MSM_MEDIA_ALIGN(height, alignment);
+		break;
+	default:
+		break;
+	}
+invalid_input:
+	return sclines;
+}
+
+static inline unsigned int VENUS_UV_SCANLINES(int color_fmt, int height)
+{
+	unsigned int alignment, sclines = 0;
+	if (!height)
+		goto invalid_input;
+
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+		alignment = 16;
+		sclines = MSM_MEDIA_ALIGN(((height + 1) >> 1), alignment);
+		break;
+	default:
+		break;
+	}
+invalid_input:
+	return sclines;
+}
+
+static inline unsigned int VENUS_BUFFER_SIZE(
+	int color_fmt, int width, int height)
+{
+	unsigned int uv_alignment;
+	unsigned int size = 0;
+	unsigned int y_plane, uv_plane, y_stride,
+		uv_stride, y_sclines, uv_sclines;
+	if (!width || !height)
+		goto invalid_input;
+
+	y_stride = VENUS_Y_STRIDE(color_fmt, width);
+	uv_stride = VENUS_UV_STRIDE(color_fmt, width);
+	y_sclines = VENUS_Y_SCANLINES(color_fmt, height);
+	uv_sclines = VENUS_UV_SCANLINES(color_fmt, height);
+	switch (color_fmt) {
+	case COLOR_FMT_NV21:
+	case COLOR_FMT_NV12:
+		uv_alignment = 4096;
+		y_plane = y_stride * y_sclines;
+		uv_plane = uv_stride * uv_sclines + uv_alignment;
+		size = y_plane + uv_plane;
+		size = MSM_MEDIA_ALIGN(size, 4096);
+		break;
+	default:
+		break;
+	}
+invalid_input:
+	return size;
+}
 
 #endif

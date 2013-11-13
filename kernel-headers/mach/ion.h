@@ -16,9 +16,19 @@
  ***
  ****************************************************************************
  ****************************************************************************/
-#ifndef _MSM_MDP_H_
-#define _MSM_MDP_H_
-#include <uapi/linux/msm_mdp.h>
-struct fb_info *msm_fb_get_writeback_fb(void);
+#ifndef __MACH_ION_H_
+#define __MACH_ION_H_
+enum ion_memory_types {
+ ION_EBI_TYPE,
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+ ION_SMI_TYPE,
+};
+enum ion_permission_type {
+ IPT_TYPE_MM_CARVEOUT = 0,
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+ IPT_TYPE_MFC_SHAREDMEM = 1,
+ IPT_TYPE_MDP_WRITEBACK = 2,
+};
 #endif
+/* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
+
