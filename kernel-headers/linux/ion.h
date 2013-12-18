@@ -18,7 +18,6 @@
  ****************************************************************************/
 #ifndef _LINUX_ION_H
 #define _LINUX_ION_H
-#include <linux/err.h>
 #include <uapi/linux/ion.h>
 /* WARNING: DO NOT EDIT, AUTO-GENERATED CODE - SEE TOP FOR INSTRUCTIONS */
 #include <mach/ion.h>
