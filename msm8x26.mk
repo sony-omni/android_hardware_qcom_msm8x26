@@ -19,3 +19,5 @@ PRODUCT_VENDOR_KERNEL_HEADERS := hardware/qcom/msm8x26/kernel-headers
 PRODUCT_PACKAGES += \
 	hwcomposer.msm8226 \
 	gralloc.msm8226
+
+PRODUCT_PROPERTY_OVERRIDES += persist.hwc.mdpcomp.enable=true
